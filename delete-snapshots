@@ -1,0 +1,112 @@
+#!/bin/bash
+#
+# -----------------------------------------------------------------------------
+#
+# Author:	Marcel Keller
+# Usage:	Shows or deletes snapshots for btrfs and zfs
+# License:	GPLv3 http://www.gnu.org/licenses/gpl-3.0
+#
+# ----------------------------- Global Variables ------------------------------
+
+version=0.1.0
+usage="usage: delete-subvolumes [parameter]
+
+ -d	shows the output instead of actually changing anything
+ -m	mode: either btrfs or zfs
+ -p	for btrfs: path to subvolumes, for zfs: rootdatasets
+ -r	restrictions used to specify the subvolumes
+ -v	show version of this script
+ -h	this page"
+
+# --------------------------------- Parameter ---------------------------------
+
+if [ "$#" == "0" ]
+	then	echo "$usage" && exit 0
+fi
+
+while getopts ":dm:p:r:vh" opt; do
+	case ${opt} in
+	d)	debug=set
+		;;
+	m)	mode=$OPTARG
+		;;
+	p)	path=$OPTARG
+		;;
+	r)	restriction=$OPTARG
+		;;
+	v)	echo "${version}"
+		exit 0
+		;;
+	h)	echo "${usage}"
+		exit 0
+		;;
+	?)	echo "Invalid option: -$OPTARG" >&2
+		exit 1
+		;;
+	esac
+done
+
+# -----------------------------------------------------------------------------
+
+# get subvolumes for deletion
+if [ "${mode}" == "btrfs" ]
+	then	if	[ -n "${restriction}" ]
+				then	elements=$(find ${path}/* -maxdepth 0 | grep ${restriction} 2> /dev/null)
+				else	elements=$(find ${path}/* -maxdepth 0)
+			fi
+
+	elif [ "${mode}" == "zfs" ]
+		then	datasets_raw=$(zfs list -r ${path} | tail -n +2)
+				elements=$(echo "${datasets_raw}" | awk '{ print $1 }')
+				elements_mountpoint=($(echo "${datasets_raw}" | awk '{ print $5 }'))
+
+	else	echo "no viable filesystem is set" && exit 1
+fi
+
+aa="-1"
+# check if element is a subvolume
+for element in ${elements}
+do	aa=$((${aa} + 1))
+
+	if [ "${mode}" == "btrfs" ]
+		then	namestring=$(echo ${element} | rev | cut -d "/" -f 1 | rev | grep [[:alnum:]])
+				probe=$(btrfs subvolume show ${element} 2> /dev/null | grep ${namestring} | awk '{ print $2 }' | rev | cut -d "/" -f 1 | rev | grep [[:alnum:]])
+
+				if [ "${probe}" == "${namestring}" ]
+					then	subvolumes+=$(echo "${element}")$'\n'
+					else	excluded+=$(echo "${element}")$'\n'
+				fi
+
+		elif [ "${mode}" == "zfs" ]
+			then	if	[ "${elements_mountpoint[aa]}" == "-" ]
+						then	new_subvolumes=$(zfs list -t snapshot | grep ${element}@ | awk '{ print $1 }')
+						else	new_subvolumes=$(find ${elements_mountpoint[aa]}/.zfs/snapshot/* -maxdepth 0 -printf '%f\n' 2> /dev/null)
+
+								for new_subvolume in ${new_subvolumes}
+								do	new_subvolumes=$(echo "${new_subvolumes}" | sed "s;${new_subvolume};${element}@${new_subvolume};g" 2> /dev/null)
+								done
+					fi
+
+					if	[ -n "${restriction}" ]
+						then	subvolumes+=$(echo "${new_subvolumes}" | grep ${restriction} 2> /dev/null)$'\n'
+						else	subvolumes+=$(echo "${new_subvolumes}")$'\n'
+					fi
+	fi
+done
+
+subvolumes=$(echo "${subvolumes}"| grep -v '^$')
+excluded=$(echo "${excluded}"| grep -v '^$')
+
+# delete or show the subvolumes
+if	[ ! -n "${debug}" ]
+	then	for subvolume in ${subvolumes}
+			do	if [ "${mode}" == "btrfs" ]
+					then	btrfs subvolume delete ${subvolume}
+					elif [ "${mode}" == "zfs" ]
+						then	zfs destroy  ${subvolume}
+				fi
+			done
+
+	else	printf "subvolumes to delete are\n${subvolumes}\n"
+			printf "no subvolumes are:\n${excluded}\n"
+fi
