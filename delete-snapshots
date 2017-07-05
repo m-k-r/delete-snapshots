@@ -26,23 +26,23 @@ fi
 
 while getopts ":dm:p:r:vh" opt; do
 	case ${opt} in
-	d)	debug=set
-		;;
-	m)	mode=$OPTARG
-		;;
-	p)	path=$OPTARG
-		;;
-	r)	restriction=$OPTARG
-		;;
-	v)	echo "${version}"
-		exit 0
-		;;
-	h)	echo "${usage}"
-		exit 0
-		;;
-	?)	echo "Invalid option: -$OPTARG" >&2
-		exit 1
-		;;
+		d)	debug=set
+			;;
+		m)	mode=$OPTARG
+			;;
+		p)	path=$OPTARG
+			;;
+		r)	restriction=$OPTARG
+			;;
+		v)	echo "${version}"
+			exit 0
+			;;
+		h)	echo "${usage}"
+			exit 0
+			;;
+		?)	echo "Invalid option: -$OPTARG" >&2
+			exit 1
+			;;
 	esac
 done
 
@@ -50,15 +50,15 @@ done
 
 # get subvolumes for deletion
 if [ "${mode}" == "btrfs" ]
-	then	if	[ -n "${restriction}" ]
+	then	if [ -n "${restriction}" ]
 				then	elements=$(find ${path}/* -maxdepth 0 | grep ${restriction} 2> /dev/null)
 				else	elements=$(find ${path}/* -maxdepth 0)
 			fi
 
 	elif [ "${mode}" == "zfs" ]
 		then	datasets_raw=$(zfs list -r ${path} | tail -n +2)
-				elements=$(echo "${datasets_raw}" | awk '{ print $1 }')
-				elements_mountpoint=($(echo "${datasets_raw}" | awk '{ print $5 }'))
+			elements=$(echo "${datasets_raw}" | awk '{ print $1 }')
+			elements_mountpoint=($(echo "${datasets_raw}" | awk '{ print $5 }'))
 
 	else	echo "no viable filesystem is set" && exit 1
 fi
@@ -70,27 +70,27 @@ do	aa=$((${aa} + 1))
 
 	if [ "${mode}" == "btrfs" ]
 		then	namestring=$(echo ${element} | rev | cut -d "/" -f 1 | rev | grep [[:alnum:]])
-				probe=$(btrfs subvolume show ${element} 2> /dev/null | grep ${namestring} | awk '{ print $2 }' | rev | cut -d "/" -f 1 | rev | grep [[:alnum:]])
+			probe=$(btrfs subvolume show ${element} 2> /dev/null | grep ${namestring} | awk '{ print $2 }' | rev | cut -d "/" -f 1 | rev | grep [[:alnum:]])
 
-				if [ "${probe}" == "${namestring}" ]
-					then	subvolumes+=$(echo "${element}")$'\n'
-					else	excluded+=$(echo "${element}")$'\n'
-				fi
+			if [ "${probe}" == "${namestring}" ]
+				then	subvolumes+=$(echo "${element}")$'\n'
+				else	excluded+=$(echo "${element}")$'\n'
+			fi
 
 		elif [ "${mode}" == "zfs" ]
-			then	if	[ "${elements_mountpoint[aa]}" == "-" ]
-						then	new_subvolumes=$(zfs list -t snapshot | grep ${element}@ | awk '{ print $1 }')
-						else	new_subvolumes=$(find ${elements_mountpoint[aa]}/.zfs/snapshot/* -maxdepth 0 -printf '%f\n' 2> /dev/null)
+			then	if [ "${elements_mountpoint[aa]}" == "-" ]
+					then	new_subvolumes=$(zfs list -t snapshot | grep ${element}@ | awk '{ print $1 }')
+					else	new_subvolumes=$(find ${elements_mountpoint[aa]}/.zfs/snapshot/* -maxdepth 0 -printf '%f\n' 2> /dev/null)
 
-								for new_subvolume in ${new_subvolumes}
-								do	new_subvolumes=$(echo "${new_subvolumes}" | sed "s;${new_subvolume};${element}@${new_subvolume};g" 2> /dev/null)
-								done
-					fi
+						for new_subvolume in ${new_subvolumes}
+						do	new_subvolumes=$(echo "${new_subvolumes}" | sed "s;${new_subvolume};${element}@${new_subvolume};g" 2> /dev/null)
+						done
+				fi
 
-					if	[ -n "${restriction}" ]
-						then	subvolumes+=$(echo "${new_subvolumes}" | grep ${restriction} 2> /dev/null)$'\n'
-						else	subvolumes+=$(echo "${new_subvolumes}")$'\n'
-					fi
+				if [ -n "${restriction}" ]
+					then	subvolumes+=$(echo "${new_subvolumes}" | grep ${restriction} 2> /dev/null)$'\n'
+					else	subvolumes+=$(echo "${new_subvolumes}")$'\n'
+				fi
 	fi
 done
 
@@ -98,15 +98,15 @@ subvolumes=$(echo "${subvolumes}"| grep -v '^$')
 excluded=$(echo "${excluded}"| grep -v '^$')
 
 # delete or show the subvolumes
-if	[ ! -n "${debug}" ]
+if [ ! -n "${debug}" ]
 	then	for subvolume in ${subvolumes}
-			do	if [ "${mode}" == "btrfs" ]
-					then	btrfs subvolume delete ${subvolume}
-					elif [ "${mode}" == "zfs" ]
-						then	zfs destroy  ${subvolume}
-				fi
-			done
+		do	if [ "${mode}" == "btrfs" ]
+				then	btrfs subvolume delete ${subvolume}
+				elif [ "${mode}" == "zfs" ]
+					then	zfs destroy  ${subvolume}
+			fi
+		done
 
 	else	printf "subvolumes to delete are\n${subvolumes}\n"
-			printf "no subvolumes are:\n${excluded}\n"
+		printf "no subvolumes are:\n${excluded}\n"
 fi
