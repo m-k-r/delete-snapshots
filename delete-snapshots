@@ -2,14 +2,14 @@
 #
 # -----------------------------------------------------------------------------
 #
-# Author:	Marcel Keller
+# Author:	Marcel Keller (m-k-r)
 # Usage:	Shows or deletes snapshots for btrfs and zfs
 # License:	GPLv3 http://www.gnu.org/licenses/gpl-3.0
 #
 # ----------------------------- Global Variables ------------------------------
 
 version=0.1.0
-usage="usage: delete-subvolumes [parameter]
+usage="usage: delete-snapshots [parameter]
 
  -d	shows the output instead of actually changing anything
  -m	mode: either btrfs or zfs
