@@ -4,4 +4,4 @@ This script is intended for deleting multiple specific snapshots from a greater 
 
 ### usage
 
-delete-subvolumes -m btrfs | zfs -p $PATH | $DATASET | -r $RESTRICTION -d (only show output, not actually delete it)
+**delete-subvolumes -m** btrfs | zfs **-p** $PATH | $DATASET | **-r** $RESTRICTION **-d** (only show output, not actually delete it)
