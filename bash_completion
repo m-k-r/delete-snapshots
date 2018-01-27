@@ -1,0 +1,34 @@
+_delete-snapshots() {
+	local cur prev list
+	COMPREPLY=()
+	cur="${COMP_WORDS[COMP_CWORD]}"
+	prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+	# define variables
+	if [[ -n "$(echo ${COMP_WORDS[@]} | grep '\-d' | egrep -v 'create')" ]] ; then
+		dir_conf=/etc/own-backup/debug/
+		offset=5 ; else
+		dir_conf=/etc/own-backup/
+		offset=4
+	fi
+
+	# define functions
+	__get_conf_name() {
+		file_conf=${dir_conf}${COMP_WORDS[$(echo ${COMP_WORDS[@]} | awk -v name='-c' '{for (i=1;i<=NF;i++) if ($i==name) print i; exit}')]}.conf
+	}
+
+	case "${prev}" in
+		-m)	list="btrfs zfs"
+			;;
+		-p)	if [[ -n "$(echo ${COMP_WORDS[@]} | grep 'zfs')" ]] ; then
+				list=$(zfs list | awk '{ print $1 }' | tail -n +2)
+			fi
+			;;
+		*)	list="-d -m -p -r -v -h"
+			;;
+	esac
+
+	COMPREPLY=( $(compgen -W "${list}" -- ${cur}) )
+	return 0
+}
+complete -F _delete-snapshots delete-snapshots
